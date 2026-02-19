@@ -36,6 +36,7 @@
     <!-- Favorites -->
     <string name="manage_favorites">Manage favorites</string>
     <string name="go_to_favorite">Go to favorite</string>
+    <string name="add_favorites">Add favorites</string>
     <string name="favorites_activity_placeholder">You can add frequently used folders to favorites for easy access from anywhere.</string>
 
     <!-- File Editor -->
@@ -56,6 +57,20 @@
     <!-- Settings -->
     <string name="enable_root_access">Enable root access</string>
     <string name="press_back_twice">Require pressing Back twice to leave the app</string>
+    <string name="network_folders">Network folders</string>
+    <string name="network_folders_placeholder">You can add network folders (SMB, FTP, etc.) here for easy access.</string>
+    <string name="add_network_folder">Add network folder</string>
+    <string name="name">Name</string>
+    <string name="path">Path</string>
+
+    <!-- Network Folder Dialog -->
+    <string name="smb">SMB</string>
+    <string name="ftp">FTP</string>
+    <string name="ip_address">IP address</string>
+    <string name="port">Port</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+
     <!--
         Haven't found some strings? There's more at
         https://github.com/FossifyOrg/Commons/tree/master/commons/src/main/res

@@ -59,6 +59,10 @@
         android:title="@string/column_count"
         app:showAsAction="never" />
     <item
+        android:id="@+id/network_folders"
+        android:title="@string/network_folders"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/settings"
         android:icon="@drawable/ic_settings_cog_vector"
         android:title="@string/settings"

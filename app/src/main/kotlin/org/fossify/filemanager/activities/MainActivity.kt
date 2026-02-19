@@ -250,6 +250,7 @@ class MainActivity : SimpleActivity() {
                     R.id.temporarily_show_hidden -> tryToggleTemporarilyShowHidden()
                     R.id.stop_showing_hidden -> tryToggleTemporarilyShowHidden()
                     R.id.column_count -> changeColumnCount()
+                    R.id.network_folders -> launchNetworkFolders()
                     R.id.more_apps_from_us -> launchMoreAppsFromUsIntent()
                     R.id.settings -> launchSettings()
                     R.id.about -> launchAbout()
@@ -574,6 +575,11 @@ class MainActivity : SimpleActivity() {
     private fun launchSettings() {
         hideKeyboard()
         startActivity(Intent(applicationContext, SettingsActivity::class.java))
+    }
+
+    private fun launchNetworkFolders() {
+        hideKeyboard()
+        startActivity(Intent(applicationContext, NetworkFoldersActivity::class.java))
     }
 
     private fun launchAbout() {

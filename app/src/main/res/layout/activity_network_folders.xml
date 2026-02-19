@@ -16,6 +16,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/color_primary"
+            app:menu="@menu/menu_network_folders"
             app:title="@string/network_folders"
             app:titleTextAppearance="@style/AppTheme.ActionBar.TitleTextStyle" />
 
@@ -51,6 +52,19 @@
             android:text="@string/network_folders_placeholder"
             android:textSize="@dimen/bigger_text_size"
             android:textStyle="italic"
+            android:visibility="gone" />
+
+        <org.fossify.commons.views.MyTextView
+            android:id="@+id/manage_network_folders_placeholder_2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/manage_network_folders_placeholder"
+            android:layout_centerHorizontal="true"
+            android:background="@drawable/ripple_all_corners"
+            android:gravity="center"
+            android:padding="@dimen/normal_margin"
+            android:text="@string/add_network_folder"
+            android:textSize="@dimen/bigger_text_size"
             android:visibility="gone" />
 
     </RelativeLayout>
