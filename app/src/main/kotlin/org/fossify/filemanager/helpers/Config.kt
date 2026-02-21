@@ -6,6 +6,7 @@ import org.fossify.commons.extensions.getInternalStoragePath
 import org.fossify.commons.helpers.BaseConfig
 import java.io.File
 import java.util.Locale
+import org.fossify.filemanager.helpers.NETWORK_FOLDERS_V1_JSON
 
 class Config(context: Context) : BaseConfig(context) {
     companion object {
@@ -121,4 +122,8 @@ class Config(context: Context) : BaseConfig(context) {
     var wasStorageAnalysisTabAdded: Boolean
         get() = prefs.getBoolean(WAS_STORAGE_ANALYSIS_TAB_ADDED, false)
         set(wasStorageAnalysisTabAdded) = prefs.edit().putBoolean(WAS_STORAGE_ANALYSIS_TAB_ADDED, wasStorageAnalysisTabAdded).apply()
+
+    var networkFoldersV1Json: String
+        get() = prefs.getString(NETWORK_FOLDERS_V1_JSON, "[]") ?: "[]"
+        set(value) = prefs.edit().putString(NETWORK_FOLDERS_V1_JSON, value).apply()
 }

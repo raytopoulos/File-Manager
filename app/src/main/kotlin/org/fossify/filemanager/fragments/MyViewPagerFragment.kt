@@ -5,6 +5,7 @@ import android.util.AttributeSet
 import android.widget.RelativeLayout
 import org.fossify.commons.extensions.*
 import org.fossify.commons.helpers.VIEW_TYPE_LIST
+import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.models.FileDirItem
 import org.fossify.commons.views.MyFloatingActionButton
 import org.fossify.filemanager.R
@@ -14,8 +15,13 @@ import org.fossify.filemanager.databinding.ItemsFragmentBinding
 import org.fossify.filemanager.databinding.RecentsFragmentBinding
 import org.fossify.filemanager.databinding.StorageFragmentBinding
 import org.fossify.filemanager.extensions.isPathOnRoot
+import org.fossify.filemanager.extensions.isSmbPath
+import org.fossify.filemanager.extensions.smbFolderId
+import org.fossify.filemanager.extensions.smbRelativePath
 import org.fossify.filemanager.extensions.tryOpenPathIntent
+import org.fossify.filemanager.helpers.AppLog
 import org.fossify.filemanager.helpers.RootHelpers
+import org.fossify.filemanager.smb.SmbFileSystem
 
 abstract class MyViewPagerFragment<BINDING : MyViewPagerFragment.InnerBinding>(context: Context, attributeSet: AttributeSet) :
     RelativeLayout(context, attributeSet) {
@@ -59,6 +65,21 @@ abstract class MyViewPagerFragment<BINDING : MyViewPagerFragment.InnerBinding>(c
     fun handleFileDeleting(files: ArrayList<FileDirItem>, hasFolder: Boolean) {
         val firstPath = files.firstOrNull()?.path
         if (firstPath == null || firstPath.isEmpty() || context == null) {
+            return
+        }
+
+        if (firstPath.isSmbPath()) {
+            val folderId = firstPath.smbFolderId()
+            ensureBackgroundThread {
+                try {
+                    val smb = SmbFileSystem(context!!)
+                    files.forEach {
+                        smb.delete(folderId, it.path.smbRelativePath(), recursive = it.isDirectory)
+                    }
+                } catch (e: Exception) {
+                    AppLog.e("MyViewPagerFragment", "SMB delete failed for $firstPath", e)
+                }
+            }
             return
         }
 

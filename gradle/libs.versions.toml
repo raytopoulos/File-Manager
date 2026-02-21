@@ -15,6 +15,11 @@ gestureviews = "2.9.0"
 rootshell = "bc7e5d398e"
 roottools = "965c154e20"
 zip4j = "2.11.6"
+
+#Network / SMB
+smbj = "0.13.0"
+slf4j = "2.0.13"
+androidx-security-crypto = "1.1.0-alpha06"
 #Gradle
 gradlePlugins-agp = "9.0.1"
 #build
@@ -37,6 +42,11 @@ gestureviews = { module = "com.alexvasilkov:gesture-views", version.ref = "gestu
 rootshell = { module = "com.github.naveensingh:RootShell", version.ref = "rootshell" }
 roottools = { module = "com.github.naveensingh:RootTools", version.ref = "roottools" }
 zip4j = { module = "net.lingala.zip4j:zip4j", version.ref = "zip4j" }
+
+#Network / SMB
+smbj = { module = "com.hierynomus:smbj", version.ref = "smbj" }
+slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
+androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "androidx-security-crypto" }
 [plugins]
 android = { id = "com.android.application", version.ref = "gradlePlugins-agp" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

@@ -77,6 +77,17 @@
             android:textSize="@dimen/bigger_text_size" />
 
         <org.fossify.commons.views.MyEditText
+            android:id="@+id/network_folder_domain"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/activity_margin"
+            android:hint="@string/domain_optional"
+            android:inputType="textNoSuggestions"
+            android:singleLine="true"
+            android:textCursorDrawable="@null"
+            android:textSize="@dimen/bigger_text_size" />
+
+        <org.fossify.commons.views.MyEditText
             android:id="@+id/network_folder_password"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

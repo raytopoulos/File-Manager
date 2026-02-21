@@ -347,7 +347,7 @@ class MimeTypesActivity : SimpleActivity(), ItemOperationsListener {
                 }
             }
         } catch (e: Exception) {
-            showErrorToast(e)
+            AppLog.e("MimeTypesActivity", "Failed loading MIME type items for $currentMimeType", e)
         }
 
         callback(fileDirItems)

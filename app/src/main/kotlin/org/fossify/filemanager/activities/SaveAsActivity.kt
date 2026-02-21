@@ -10,6 +10,7 @@ import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.filemanager.R
 import org.fossify.filemanager.databinding.ActivitySaveAsBinding
 import org.fossify.filemanager.extensions.config
+import org.fossify.filemanager.helpers.AppLog
 import java.io.File
 
 class SaveAsActivity : SimpleActivity() {
@@ -65,7 +66,7 @@ class SaveAsActivity : SimpleActivity() {
                             toast(R.string.file_saved)
                             finish()
                         } catch (e: Exception) {
-                            showErrorToast(e)
+                            AppLog.e("SaveAsActivity", "Save-as failed", e)
                             finish()
                         }
                     }

@@ -6,7 +6,6 @@ import android.os.Parcelable
 import android.util.AttributeSet
 import androidx.recyclerview.widget.GridLayoutManager
 import org.fossify.commons.activities.BaseSimpleActivity
-import org.fossify.commons.dialogs.StoragePickerDialog
 import org.fossify.commons.extensions.*
 import org.fossify.commons.helpers.*
 import org.fossify.commons.models.FileDirItem
@@ -19,12 +18,18 @@ import org.fossify.filemanager.activities.SimpleActivity
 import org.fossify.filemanager.adapters.ItemsAdapter
 import org.fossify.filemanager.databinding.ItemsFragmentBinding
 import org.fossify.filemanager.dialogs.CreateNewItemDialog
+import org.fossify.filemanager.dialogs.StoragePickerWithNetworkFoldersDialog
 import org.fossify.filemanager.extensions.config
+import org.fossify.filemanager.extensions.isSmbPath
+import org.fossify.filemanager.extensions.smbFolderId
+import org.fossify.filemanager.extensions.smbRelativePath
 import org.fossify.filemanager.extensions.isPathOnRoot
+import org.fossify.filemanager.helpers.AppLog
 import org.fossify.filemanager.helpers.MAX_COLUMN_COUNT
 import org.fossify.filemanager.helpers.RootHelpers
 import org.fossify.filemanager.interfaces.ItemOperationsListener
 import org.fossify.filemanager.models.ListItem
+import org.fossify.filemanager.smb.SmbFileSystem
 import java.io.File
 
 class ItemsFragment(context: Context, attributeSet: AttributeSet) : MyViewPagerFragment<MyViewPagerFragment.ItemsInnerBinding>(context, attributeSet),
@@ -185,6 +190,19 @@ class ItemsFragment(context: Context, attributeSet: AttributeSet) : MyViewPagerF
         ensureBackgroundThread {
             if (activity?.isDestroyed == false && activity?.isFinishing == false) {
                 val config = context!!.config
+                if (path.isSmbPath()) {
+                    try {
+                        val smb = SmbFileSystem(context!!)
+                        val fileItems = smb.list(path.smbFolderId(), path.smbRelativePath())
+                        callback(path, getListItemsFromFileDirItems(ArrayList(fileItems)))
+                    } catch (e: Exception) {
+                        AppLog.e("ItemsFragment", "SMB list failed for $path", e)
+                        activity?.runOnUiThread { hideProgressBar() }
+                        callback(path, ArrayList())
+                    }
+                    return@ensureBackgroundThread
+                }
+
                 if (context.isRestrictedSAFOnlyRoot(path)) {
                     activity?.runOnUiThread { hideProgressBar() }
                     activity?.handleAndroidSAFDialog(path, openInSystemAppAllowed = true) {
@@ -526,7 +544,7 @@ class ItemsFragment(context: Context, attributeSet: AttributeSet) : MyViewPagerF
 
     override fun breadcrumbClicked(id: Int) {
         if (id == 0) {
-            StoragePickerDialog(activity as SimpleActivity, currentPath, context!!.config.enableRootAccess, true) {
+            StoragePickerWithNetworkFoldersDialog(activity as SimpleActivity, currentPath) {
                 getRecyclerAdapter()?.finishActMode()
                 openPath(it)
             }

@@ -140,10 +140,13 @@ dependencies {
     implementation(libs.fossify.commons)
     implementation(libs.androidx.documentfile)
     implementation(libs.androidx.swiperefreshlayout)
+    implementation(libs.androidx.security.crypto)
     implementation(libs.roottools)
     implementation(libs.rootshell)
     implementation(libs.gestureviews)
     implementation(libs.autofittextview)
     implementation(libs.zip4j)
+    implementation(libs.smbj)
+    implementation(libs.slf4j.nop)
     detektPlugins(libs.compose.detekt)
 }

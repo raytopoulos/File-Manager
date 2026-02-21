@@ -4,7 +4,6 @@ import android.app.Activity
 import com.stericson.RootShell.execution.Command
 import com.stericson.RootTools.RootTools
 import org.fossify.commons.extensions.areDigitsOnly
-import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.extensions.toast
 import org.fossify.commons.helpers.SORT_BY_SIZE
 import org.fossify.commons.models.FileDirItem
@@ -26,7 +25,7 @@ class RootHelpers(val activity: Activity) {
         try {
             RootTools.getShell(true).add(command)
         } catch (exception: Exception) {
-            activity.showErrorToast(exception)
+            AppLog.e("RootHelpers", "Root shell initialization failed", exception)
             callback(false)
         }
     }
@@ -158,7 +157,7 @@ class RootHelpers(val activity: Activity) {
         try {
             RootTools.getShell(true).add(command)
         } catch (e: Exception) {
-            activity.showErrorToast(e)
+            AppLog.e("RootHelpers", "Root command failed", e)
         }
     }
 

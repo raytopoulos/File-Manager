@@ -7,7 +7,12 @@ import org.fossify.commons.helpers.isRPlus
 import org.fossify.filemanager.R
 import org.fossify.filemanager.activities.SimpleActivity
 import org.fossify.filemanager.databinding.DialogCreateNewBinding
+import org.fossify.filemanager.extensions.isSmbPath
+import org.fossify.filemanager.extensions.smbFolderId
+import org.fossify.filemanager.extensions.smbRelativePath
+import org.fossify.filemanager.helpers.AppLog
 import org.fossify.filemanager.helpers.RootHelpers
+import org.fossify.filemanager.smb.SmbFileSystem
 import java.io.File
 import java.io.IOException
 
@@ -50,6 +55,21 @@ class CreateNewItemDialog(val activity: SimpleActivity, val path: String, val ca
     }
 
     private fun createDirectory(path: String, alertDialog: AlertDialog, callback: (Boolean) -> Unit) {
+        if (path.isSmbPath()) {
+            org.fossify.commons.helpers.ensureBackgroundThread {
+                try {
+                    SmbFileSystem(activity).mkdir(path.smbFolderId(), path.smbRelativePath())
+                    activity.runOnUiThread { success(alertDialog) }
+                } catch (e: Exception) {
+                    activity.runOnUiThread {
+                        AppLog.e("CreateNewItemDialog", "SMB mkdir failed for $path", e)
+                        callback(false)
+                    }
+                }
+            }
+            return
+        }
+
         when {
             activity.needsStupidWritePermissions(path) -> activity.handleSAFDialog(path) {
                 if (!it) {
@@ -59,7 +79,7 @@ class CreateNewItemDialog(val activity: SimpleActivity, val path: String, val ca
                 val documentFile = activity.getDocumentFile(path.getParentPath())
                 if (documentFile == null) {
                     val error = String.format(activity.getString(R.string.could_not_create_folder), path)
-                    activity.showErrorToast(error)
+                    AppLog.e("CreateNewItemDialog", error)
                     callback(false)
                     return@handleSAFDialog
                 }
@@ -78,7 +98,7 @@ class CreateNewItemDialog(val activity: SimpleActivity, val path: String, val ca
                             success(alertDialog)
                         } else {
                             val error = String.format(activity.getString(R.string.could_not_create_folder), path)
-                            activity.showErrorToast(error)
+                            AppLog.e("CreateNewItemDialog", error)
                             callback(false)
                         }
                     }
@@ -102,6 +122,21 @@ class CreateNewItemDialog(val activity: SimpleActivity, val path: String, val ca
     }
 
     private fun createFile(path: String, alertDialog: AlertDialog, callback: (Boolean) -> Unit) {
+        if (path.isSmbPath()) {
+            org.fossify.commons.helpers.ensureBackgroundThread {
+                try {
+                    SmbFileSystem(activity).createEmptyFile(path.smbFolderId(), path.smbRelativePath())
+                    activity.runOnUiThread { success(alertDialog) }
+                } catch (e: Exception) {
+                    activity.runOnUiThread {
+                        AppLog.e("CreateNewItemDialog", "SMB create file failed for $path", e)
+                        callback(false)
+                    }
+                }
+            }
+            return
+        }
+
         try {
             when {
                 activity.isRestrictedSAFOnlyRoot(path) -> {
@@ -114,7 +149,7 @@ class CreateNewItemDialog(val activity: SimpleActivity, val path: String, val ca
                             success(alertDialog)
                         } else {
                             val error = String.format(activity.getString(R.string.could_not_create_file), path)
-                            activity.showErrorToast(error)
+                            AppLog.e("CreateNewItemDialog", error)
                             callback(false)
                         }
                     }
@@ -129,7 +164,7 @@ class CreateNewItemDialog(val activity: SimpleActivity, val path: String, val ca
                         val documentFile = activity.getDocumentFile(path.getParentPath())
                         if (documentFile == null) {
                             val error = String.format(activity.getString(R.string.could_not_create_file), path)
-                            activity.showErrorToast(error)
+                            AppLog.e("CreateNewItemDialog", error)
                             callback(false)
                             return@handleSAFDialog
                         }
@@ -155,7 +190,7 @@ class CreateNewItemDialog(val activity: SimpleActivity, val path: String, val ca
                 }
             }
         } catch (exception: IOException) {
-            activity.showErrorToast(exception)
+            AppLog.e("CreateNewItemDialog", "Create failed for $path", exception)
             callback(false)
         }
     }

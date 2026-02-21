@@ -8,11 +8,11 @@ import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.dialogs.ConfirmationAdvancedDialog
 import org.fossify.commons.extensions.hasPermission
 import android.net.Uri
-import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.extensions.toast
 import org.fossify.commons.helpers.PERMISSION_WRITE_STORAGE
 import org.fossify.commons.helpers.isRPlus
 import org.fossify.filemanager.R
+import org.fossify.filemanager.helpers.AppLog
 
 open class SimpleActivity : BaseSimpleActivity() {
     override fun getAppIconIDs() = arrayListOf(
@@ -80,12 +80,12 @@ open class SimpleActivity : BaseSimpleActivity() {
                             intent.data = Uri.parse("package:$packageName")
                             startActivityForResult(intent, MANAGE_STORAGE_RC)
                         } catch (e: android.content.ActivityNotFoundException) {
-                            showErrorToast(e)
+                            AppLog.e("SimpleActivity", "Failed opening manage storage permission screen", e)
                             val intent = Intent()
                             intent.action = Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION
                             startActivityForResult(intent, MANAGE_STORAGE_RC)
                         } catch (e: SecurityException) {
-                            showErrorToast(e)
+                            AppLog.e("SimpleActivity", "SecurityException opening manage storage permission screen", e)
                             finish()
                         }
                     } else {

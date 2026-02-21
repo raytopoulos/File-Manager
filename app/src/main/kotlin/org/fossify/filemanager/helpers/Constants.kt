@@ -23,6 +23,9 @@ const val DISPLAY_FILE_NAMES = "display_file_names"
 const val SHOW_TABS = "show_tabs"
 const val WAS_STORAGE_ANALYSIS_TAB_ADDED = "was_storage_analysis_tab_added"
 
+// network folders
+const val NETWORK_FOLDERS_V1_JSON = "network_folders_v1_json"
+
 // open as
 const val OPEN_AS_DEFAULT = 0
 const val OPEN_AS_TEXT = 1

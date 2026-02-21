@@ -25,6 +25,7 @@ import org.fossify.filemanager.R
 import org.fossify.filemanager.databinding.ActivityReadTextBinding
 import org.fossify.filemanager.dialogs.SaveAsDialog
 import org.fossify.filemanager.extensions.openPath
+import org.fossify.filemanager.helpers.AppLog
 import org.fossify.filemanager.views.GestureEditText
 import java.io.File
 import java.io.OutputStream
@@ -262,11 +263,11 @@ class ReadTextActivity : SimpleActivity() {
                         webView.loadData(base64, "text/plain", "base64")
                     }
                 } catch (e: Exception) {
-                    showErrorToast(e)
+                    AppLog.e("ReadTextActivity", "Print preparation failed", e)
                 }
             }
         } catch (e: Exception) {
-            showErrorToast(e)
+            AppLog.e("ReadTextActivity", "Print failed", e)
         }
     }
 
@@ -292,7 +293,7 @@ class ReadTextActivity : SimpleActivity() {
                 try {
                     file.readText()
                 } catch (e: Exception) {
-                    showErrorToast(e)
+                    AppLog.e("ReadTextActivity", "Failed reading file $filePath", e)
                     ""
                 }
             } else {
@@ -303,10 +304,10 @@ class ReadTextActivity : SimpleActivity() {
             try {
                 contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() }
             } catch (e: OutOfMemoryError) {
-                showErrorToast(e.toString())
+                AppLog.e("ReadTextActivity", "Out of memory reading uri $uri: $e")
                 return
             } catch (e: Exception) {
-                showErrorToast(e)
+                AppLog.e("ReadTextActivity", "Failed reading uri $uri", e)
                 finish()
                 return
             }

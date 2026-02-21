@@ -10,7 +10,7 @@ import java.util.Locale
 
 val Context.config: Config get() = Config.newInstance(applicationContext)
 
-fun Context.isPathOnRoot(path: String) = !(path.startsWith(config.internalStoragePath) || isPathOnOTG(path) || (isPathOnSD(path)))
+fun Context.isPathOnRoot(path: String) = !path.isSmbPath() && !(path.startsWith(config.internalStoragePath) || isPathOnOTG(path) || (isPathOnSD(path)))
 
 fun Context.getAllVolumeNames(): List<String> {
     val volumeNames = mutableListOf(PRIMARY_VOLUME_NAME)

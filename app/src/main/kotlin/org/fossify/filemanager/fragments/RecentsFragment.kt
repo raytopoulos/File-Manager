@@ -13,7 +13,6 @@ import org.fossify.commons.extensions.getFilenameFromPath
 import org.fossify.commons.extensions.getLongValue
 import org.fossify.commons.extensions.getStringValue
 import org.fossify.commons.extensions.normalizeString
-import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.helpers.VIEW_TYPE_GRID
 import org.fossify.commons.helpers.VIEW_TYPE_LIST
 import org.fossify.commons.helpers.ensureBackgroundThread
@@ -26,6 +25,7 @@ import org.fossify.filemanager.adapters.ItemsAdapter
 import org.fossify.filemanager.databinding.RecentsFragmentBinding
 import org.fossify.filemanager.extensions.config
 import org.fossify.filemanager.extensions.isPathInHiddenFolder
+import org.fossify.filemanager.helpers.AppLog
 import org.fossify.filemanager.helpers.MAX_COLUMN_COUNT
 import org.fossify.filemanager.interfaces.ItemOperationsListener
 import org.fossify.filemanager.models.ListItem
@@ -192,7 +192,7 @@ class RecentsFragment(context: Context, attributeSet: AttributeSet) : MyViewPage
                 }
             }
         } catch (e: Exception) {
-            activity?.showErrorToast(e)
+            AppLog.e("RecentsFragment", "Failed querying recents", e)
         }
 
         activity?.runOnUiThread {

@@ -12,19 +12,55 @@ import org.fossify.commons.extensions.openPathIntent
 import org.fossify.commons.extensions.renameFile
 import org.fossify.commons.extensions.setAsIntent
 import org.fossify.commons.extensions.sharePathsIntent
+import org.fossify.commons.extensions.toast
+import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.filemanager.BuildConfig
+import org.fossify.filemanager.helpers.AppLog
 import org.fossify.filemanager.helpers.OPEN_AS_AUDIO
 import org.fossify.filemanager.helpers.OPEN_AS_DEFAULT
 import org.fossify.filemanager.helpers.OPEN_AS_IMAGE
 import org.fossify.filemanager.helpers.OPEN_AS_TEXT
 import org.fossify.filemanager.helpers.OPEN_AS_VIDEO
+import org.fossify.filemanager.smb.SmbFileSystem
 import java.io.File
+import java.io.FileOutputStream
 
 fun Activity.sharePaths(paths: ArrayList<String>) {
     sharePathsIntent(paths, BuildConfig.APPLICATION_ID)
 }
 
 fun Activity.tryOpenPathIntent(path: String, forceChooser: Boolean, openAsType: Int = OPEN_AS_DEFAULT, finishActivity: Boolean = false) {
+    if (path.isSmbPath()) {
+        toast(org.fossify.filemanager.R.string.downloading)
+        ensureBackgroundThread {
+            try {
+                val folderId = path.smbFolderId()
+                val relPath = path.smbRelativePath()
+                val filename = path.getFilenameFromPath().takeIf { it.isNotEmpty() } ?: "download"
+                val outFile = File(cacheDir, "smb/$folderId/$filename").apply { parentFile?.mkdirs() }
+
+                SmbFileSystem(this).openInputStream(folderId, relPath).use { input ->
+                    FileOutputStream(outFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                val uri = FileProvider.getUriForFile(this, "${BuildConfig.APPLICATION_ID}.provider", outFile)
+                runOnUiThread {
+                    Intent().apply {
+                        action = Intent.ACTION_VIEW
+                        setDataAndType(uri, getMimeTypeFromUri(uri))
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        launchActivityIntent(this)
+                    }
+                }
+            } catch (e: Exception) {
+                AppLog.e("Activity", "SMB open failed for $path", e)
+            }
+        }
+        return
+    }
+
     if (!forceChooser && path.endsWith(".apk", true)) {
         val uri = FileProvider.getUriForFile(
             this, "${BuildConfig.APPLICATION_ID}.provider", File(path)

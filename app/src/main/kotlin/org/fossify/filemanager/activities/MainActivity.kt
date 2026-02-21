@@ -64,6 +64,7 @@ import org.fossify.filemanager.dialogs.ChangeSortingDialog
 import org.fossify.filemanager.dialogs.ChangeViewTypeDialog
 import org.fossify.filemanager.dialogs.InsertFilenameDialog
 import org.fossify.filemanager.extensions.config
+import org.fossify.filemanager.extensions.isSmbPath
 import org.fossify.filemanager.extensions.tryOpenPathIntent
 import org.fossify.filemanager.fragments.ItemsFragment
 import org.fossify.filemanager.fragments.MyViewPagerFragment
@@ -80,6 +81,7 @@ class MainActivity : SimpleActivity() {
     companion object {
         private const val BACK_PRESS_TIMEOUT = 5000
         private const val PICKED_PATH = "picked_path"
+        const val NETWORK_FOLDERS_RC = 9100
     }
 
     private val binding by viewBinding(ActivityMainBinding::inflate)
@@ -459,6 +461,10 @@ class MainActivity : SimpleActivity() {
 
     private fun openPath(path: String, forceRefresh: Boolean = false) {
         var newPath = path
+        if (newPath.isSmbPath()) {
+            getItemsFragment()?.openPath(newPath, forceRefresh)
+            return
+        }
         val file = File(path)
         if (config.OTGPath.isNotEmpty() && config.OTGPath == path.trimEnd('/')) {
             newPath = path
@@ -469,6 +475,16 @@ class MainActivity : SimpleActivity() {
         }
 
         getItemsFragment()?.openPath(newPath, forceRefresh)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, resultData: Intent?) {
+        super.onActivityResult(requestCode, resultCode, resultData)
+        if (requestCode == NETWORK_FOLDERS_RC && resultCode == Activity.RESULT_OK) {
+            val path = resultData?.getStringExtra(NetworkFoldersActivity.EXTRA_OPEN_PATH)
+            if (!path.isNullOrEmpty()) {
+                openPath(path, true)
+            }
+        }
     }
 
     private fun goHome() {
@@ -579,7 +595,7 @@ class MainActivity : SimpleActivity() {
 
     private fun launchNetworkFolders() {
         hideKeyboard()
-        startActivity(Intent(applicationContext, NetworkFoldersActivity::class.java))
+        startActivityForResult(Intent(applicationContext, NetworkFoldersActivity::class.java), NETWORK_FOLDERS_RC)
     }
 
     private fun launchAbout() {

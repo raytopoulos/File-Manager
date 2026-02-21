@@ -17,7 +17,6 @@ import org.fossify.commons.extensions.getParentPath
 import org.fossify.commons.extensions.getRealPathFromURI
 import org.fossify.commons.extensions.internalStoragePath
 import org.fossify.commons.extensions.isGone
-import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.extensions.toast
 import org.fossify.commons.extensions.viewBinding
 import org.fossify.commons.helpers.NavigationIcon
@@ -27,6 +26,7 @@ import org.fossify.filemanager.adapters.DecompressItemsAdapter
 import org.fossify.filemanager.databinding.ActivityDecompressBinding
 import org.fossify.filemanager.extensions.config
 import org.fossify.filemanager.extensions.setLastModified
+import org.fossify.filemanager.helpers.AppLog
 import org.fossify.filemanager.models.ListItem
 import java.io.BufferedInputStream
 import java.io.File
@@ -110,7 +110,7 @@ class DecompressActivity : SimpleActivity() {
             val listItems = getFolderItems(currentPath)
             updateAdapter(listItems = listItems)
         } catch (e: Exception) {
-            showErrorToast(e)
+            AppLog.e("DecompressActivity", "Failed getting folder items for $currentPath", e)
         }
     }
 
@@ -198,7 +198,7 @@ class DecompressActivity : SimpleActivity() {
                 finish()
             }
         } catch (e: Exception) {
-            showErrorToast(e)
+            AppLog.e("DecompressActivity", "Decompression failed", e)
         }
     }
 
@@ -218,7 +218,7 @@ class DecompressActivity : SimpleActivity() {
         val inputStream = try {
             contentResolver.openInputStream(uri)
         } catch (e: Exception) {
-            showErrorToast(e)
+            AppLog.e("DecompressActivity", "Failed opening input stream for $uri", e)
             return@ensureBackgroundThread
         }
 
