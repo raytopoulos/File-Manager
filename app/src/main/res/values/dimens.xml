@@ -2,4 +2,5 @@
     <dimen name="grid_view_icon_size">50dp</dimen>
     <dimen name="storage_free_space_text_size">46sp</dimen>
     <dimen name="default_status_action_height">86dp</dimen>
+    <dimen name="clipboard_action_corner_radius">16dp</dimen>
 </resources>

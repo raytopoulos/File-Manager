@@ -184,16 +184,7 @@ class SmbFileSystem(private val context: Context) {
         val childRelPath = joinRelPath(relParentPath, name)
         val fullPath = "${buildSmbRootPath(folder)}/${childRelPath}".trimEnd('/')
         val size = if (isDirectory) 0L else info.endOfFile
-        val modified = runCatching {
-            val ft = info.lastWriteTime
-            val toEpochMillis = ft.javaClass.methods.firstOrNull { it.name == "toEpochMillis" && it.parameterTypes.isEmpty() }
-            val toDate = ft.javaClass.methods.firstOrNull { it.name == "toDate" && it.parameterTypes.isEmpty() }
-            when {
-                toEpochMillis != null -> (toEpochMillis.invoke(ft) as? Number)?.toLong() ?: 0L
-                toDate != null -> (toDate.invoke(ft) as? java.util.Date)?.time ?: 0L
-                else -> 0L
-            }
-        }.getOrDefault(0L)
+        val modified = runCatching { info.lastWriteTime.toEpochMillis() }.getOrDefault(0L)
         return FileDirItem(fullPath, name, isDirectory, 0, size, modified)
     }
 

@@ -93,6 +93,7 @@ import org.fossify.commons.models.FileDirItem
 import org.fossify.commons.models.RadioItem
 import org.fossify.commons.views.MyRecyclerView
 import org.fossify.filemanager.R
+import org.fossify.filemanager.activities.MainActivity
 import org.fossify.filemanager.activities.SimpleActivity
 import org.fossify.filemanager.activities.SplashActivity
 import org.fossify.filemanager.databinding.ItemDirGridBinding
@@ -112,20 +113,16 @@ import org.fossify.filemanager.extensions.tryOpenPathIntent
 import org.fossify.filemanager.extensions.isSmbPath
 import org.fossify.filemanager.extensions.smbFolderId
 import org.fossify.filemanager.extensions.smbRelativePath
-import org.fossify.filemanager.helpers.NetworkFoldersRepository
 import org.fossify.filemanager.helpers.AppLog
 import org.fossify.filemanager.helpers.OPEN_AS_AUDIO
 import org.fossify.filemanager.helpers.OPEN_AS_IMAGE
 import org.fossify.filemanager.helpers.OPEN_AS_OTHER
 import org.fossify.filemanager.helpers.OPEN_AS_TEXT
 import org.fossify.filemanager.helpers.OPEN_AS_VIDEO
-import org.fossify.filemanager.helpers.RootHelpers
-import org.fossify.filemanager.helpers.TransferEngine
 import org.fossify.filemanager.interfaces.ItemOperationsListener
+import org.fossify.filemanager.models.ClipboardItem
+import org.fossify.filemanager.models.ClipboardOperation
 import org.fossify.filemanager.models.ListItem
-import org.fossify.filemanager.models.NetworkFolderType
-import org.fossify.filemanager.dialogs.CopyMoveDestinationDialog
-import org.fossify.filemanager.dialogs.SmbDirectoryPickerDialog
 import org.fossify.filemanager.smb.SmbFileSystem
 import java.io.BufferedInputStream
 import java.io.Closeable
@@ -216,7 +213,7 @@ class ItemsAdapter(
             R.id.cab_set_as -> setAs()
             R.id.cab_open_with -> openWith()
             R.id.cab_open_as -> openAs()
-            R.id.cab_copy_to -> copyMoveTo(true)
+            R.id.cab_copy_to -> copyMoveToClipboard(true)
             R.id.cab_move_to -> tryMoveFiles()
             R.id.cab_compress -> compressSelection()
             R.id.cab_decompress -> decompressSelection()
@@ -561,11 +558,11 @@ class ItemsAdapter(
 
     private fun tryMoveFiles() {
         activity.handleDeletePasswordProtection {
-            copyMoveTo(false)
+            copyMoveToClipboard(false)
         }
     }
 
-    private fun copyMoveTo(isCopyOperation: Boolean) {
+    private fun copyMoveToClipboard(isCopyOperation: Boolean) {
         val files = getSelectedFileDirItems()
         val hasSmb = files.any { it.path.isSmbPath() }
         val hasLocal = files.any { !it.path.isSmbPath() }
@@ -574,223 +571,22 @@ class ItemsAdapter(
             return
         }
 
-        // Destination picking is handled by a single dialog. Network folders are selectable from the storage picker.
-        copyMoveToDeviceStorage(files, isCopyOperation)
-    }
-
-    private fun copyMoveToDeviceStorage(files: ArrayList<FileDirItem>, isCopyOperation: Boolean) {
         val hasSmbSource = files.any { it.path.isSmbPath() }
         if (hasSmbSource && files.map { it.path.smbFolderId() }.distinct().size > 1) {
             activity.toast(R.string.not_supported_yet)
             return
         }
 
-        val firstFile = files[0]
-        val source = firstFile.getParentPath()
-        val startPath = if (hasSmbSource) {
-            activity.internalStoragePath
-        } else {
-            activity.getDefaultCopyDestinationPath(config.shouldShowHidden(), source)
-        }
+        val operation = ClipboardOperation(
+            items = files.mapTo(ArrayList()) {
+                ClipboardItem(it.path, it.name, it.isDirectory)
+            },
+            sourceParentPath = files[0].getParentPath(),
+            isCopyOperation = isCopyOperation
+        )
 
-        CopyMoveDestinationDialog(activity as SimpleActivity, startPath, config.shouldShowHidden()) { destination ->
-            if (destination.isSmbPath()) {
-                if (!hasSmbSource) {
-                    val anyUnsupported = files.any { fileDirItem ->
-                        val p = fileDirItem.path
-                        activity.isPathOnOTG(p) || activity.isRestrictedSAFOnlyRoot(p) || activity.isPathOnRoot(p)
-                    }
-                    if (anyUnsupported) {
-                        activity.toast(R.string.not_supported_yet)
-                        return@CopyMoveDestinationDialog
-                    }
-                }
-
-                activity.toast(R.string.copying)
-                ensureBackgroundThread {
-                    try {
-                        val engine = TransferEngine(activity)
-                        val destFolderId = destination.smbFolderId()
-                        val destRelDir = destination.smbRelativePath()
-                        val paths = files.map { it.path }
-                        if (hasSmbSource) {
-                            engine.copyMoveSmbToSmb(paths, destFolderId, destRelDir, isCopyOperation)
-                        } else {
-                            engine.copyMoveLocalToSmb(paths, destFolderId, destRelDir, isCopyOperation)
-                        }
-                        activity.runOnUiThread {
-                            activity.toast(R.string.copying_success)
-                            listener?.refreshFragment()
-                            finishActMode()
-                        }
-                    } catch (e: Exception) {
-                        AppLog.e("ItemsAdapter", "SMB copy/move to network folder failed", e)
-                    }
-                }
-                return@CopyMoveDestinationDialog
-            }
-
-            if (activity.isPathOnOTG(destination) || activity.isRestrictedSAFOnlyRoot(destination) || activity.isPathOnRoot(destination)) {
-                activity.toast(R.string.not_supported_yet)
-                return@CopyMoveDestinationDialog
-            }
-
-            val destDir = File(destination)
-            if (!destDir.exists()) {
-                destDir.mkdirs()
-            }
-            if (!destDir.isDirectory) {
-                activity.toast(R.string.unknown_error_occurred)
-                return@CopyMoveDestinationDialog
-            }
-
-            if (hasSmbSource) {
-                activity.toast(R.string.copying)
-                ensureBackgroundThread {
-                    try {
-                        TransferEngine(activity).copyMoveSmbToLocal(files.map { it.path }, destination, isCopyOperation)
-                        activity.runOnUiThread {
-                            activity.toast(R.string.copying_success)
-                            listener?.refreshFragment()
-                            finishActMode()
-                        }
-                    } catch (e: Exception) {
-                        AppLog.e("ItemsAdapter", "SMB copy/move to device storage failed", e)
-                    }
-                }
-                return@CopyMoveDestinationDialog
-            }
-
-            config.lastCopyPath = destination
-            if (activity.isPathOnRoot(destination) || activity.isPathOnRoot(firstFile.path)) {
-                copyMoveRootItems(files, destination, isCopyOperation)
-            } else {
-                activity.copyMoveFilesTo(
-                    fileDirItems = files,
-                    source = source,
-                    destination = destination,
-                    isCopyOperation = isCopyOperation,
-                    copyPhotoVideoOnly = false,
-                    copyHidden = config.shouldShowHidden()
-                ) {
-                    if (!isCopyOperation) {
-                        files.forEach { sourceFileDir ->
-                            val sourcePath = sourceFileDir.path
-                            if (
-                                activity.isRestrictedSAFOnlyRoot(sourcePath)
-                                && activity.getDoesFilePathExist(sourcePath)
-                            ) {
-                                activity.deleteFile(sourceFileDir, true) {
-                                    listener?.refreshFragment()
-                                    activity.runOnUiThread {
-                                        finishActMode()
-                                    }
-                                }
-                            } else {
-                                val sourceFile = File(sourcePath)
-                                if (
-                                    activity.getDoesFilePathExist(source)
-                                    && activity.getIsPathDirectory(source)
-                                    && sourceFile.list()?.isEmpty() == true
-                                    && sourceFile.getProperSize(true) == 0L
-                                    && sourceFile.getFileCount(true) == 0
-                                ) {
-                                    val sourceFolder = sourceFile.toFileDirItem(activity)
-                                    activity.deleteFile(sourceFolder, true) {
-                                        listener?.refreshFragment()
-                                        activity.runOnUiThread {
-                                            finishActMode()
-                                        }
-                                    }
-                                } else {
-                                    listener?.refreshFragment()
-                                    finishActMode()
-                                }
-                            }
-                        }
-                    } else {
-                        listener?.refreshFragment()
-                        finishActMode()
-                    }
-                }
-            }
-        }
-    }
-
-    private fun copyMoveToSmb(files: ArrayList<FileDirItem>, isCopyOperation: Boolean) {
-        val hasSmb = files.any { it.path.isSmbPath() }
-        if (!hasSmb) {
-            val anyUnsupported = files.any { fileDirItem ->
-                val p = fileDirItem.path
-                activity.isPathOnOTG(p) || activity.isRestrictedSAFOnlyRoot(p) || activity.isPathOnRoot(p)
-            }
-            if (anyUnsupported) {
-                activity.toast(R.string.not_supported_yet)
-                return
-            }
-        }
-
-        if (hasSmb && files.map { it.path.smbFolderId() }.distinct().size > 1) {
-            activity.toast(R.string.not_supported_yet)
-            return
-        }
-
-        val folders = NetworkFoldersRepository(activity).getAll().filter { it.type == NetworkFolderType.SMB }
-        if (folders.isEmpty()) {
-            activity.toast(R.string.no_network_folders)
-            return
-        }
-
-        val items = folders.mapIndexed { index, folder ->
-            RadioItem(index, "${folder.name} (${folder.host}/${folder.share})")
-        }
-        RadioGroupDialog(activity, ArrayList(items)) { selected ->
-            val folder = folders[selected as Int]
-            SmbDirectoryPickerDialog(activity, folder, "") { destRelDir ->
-                activity.toast(R.string.copying)
-                ensureBackgroundThread {
-                    try {
-                        val engine = TransferEngine(activity)
-                        val paths = files.map { it.path }
-                        if (hasSmb) {
-                            engine.copyMoveSmbToSmb(paths, folder.id, destRelDir, isCopyOperation)
-                        } else {
-                            engine.copyMoveLocalToSmb(paths, folder.id, destRelDir, isCopyOperation)
-                        }
-                        activity.runOnUiThread {
-                            activity.toast(R.string.copying_success)
-                            listener?.refreshFragment()
-                            finishActMode()
-                        }
-                    } catch (e: Exception) {
-                        AppLog.e("ItemsAdapter", "SMB copy/move to network folder failed", e)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun copyMoveRootItems(
-        files: ArrayList<FileDirItem>,
-        destinationPath: String,
-        isCopyOperation: Boolean
-    ) {
-        activity.toast(R.string.copying)
-        ensureBackgroundThread {
-            val fileCnt = files.size
-            RootHelpers(activity).copyMoveFiles(files, destinationPath, isCopyOperation) {
-                when (it) {
-                    fileCnt -> activity.toast(R.string.copying_success)
-                    0 -> activity.toast(R.string.copy_failed)
-                    else -> activity.toast(R.string.copying_success_partial)
-                }
-
-                activity.runOnUiThread {
-                    listener?.refreshFragment()
-                    finishActMode()
-                }
-            }
-        }
+        (activity as? MainActivity)?.setClipboardOperation(operation)
+        finishActMode()
     }
 
     private fun compressSelection() {

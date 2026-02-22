@@ -19,8 +19,13 @@ import org.fossify.commons.extensions.beGoneIf
 import org.fossify.commons.extensions.checkWhatsNew
 import org.fossify.commons.extensions.getBottomNavigationBackgroundColor
 import org.fossify.commons.extensions.getColoredDrawableWithColor
+import org.fossify.commons.extensions.deleteFile
+import org.fossify.commons.extensions.getDoesFilePathExist
+import org.fossify.commons.extensions.getFileCount
 import org.fossify.commons.extensions.getFilePublicUri
+import org.fossify.commons.extensions.getIsPathDirectory
 import org.fossify.commons.extensions.getMimeType
+import org.fossify.commons.extensions.getProperSize
 import org.fossify.commons.extensions.getProperBackgroundColor
 import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.commons.extensions.getRealPathFromURI
@@ -34,11 +39,13 @@ import org.fossify.commons.extensions.humanizePath
 import org.fossify.commons.extensions.internalStoragePath
 import org.fossify.commons.extensions.isPathOnOTG
 import org.fossify.commons.extensions.isPathOnSD
+import org.fossify.commons.extensions.isRestrictedSAFOnlyRoot
 import org.fossify.commons.extensions.launchMoreAppsFromUsIntent
 import org.fossify.commons.extensions.onGlobalLayout
 import org.fossify.commons.extensions.onTabSelectionChanged
 import org.fossify.commons.extensions.sdCardPath
 import org.fossify.commons.extensions.toast
+import org.fossify.commons.extensions.toFileDirItem
 import org.fossify.commons.extensions.updateBottomTabItemColors
 import org.fossify.commons.extensions.viewBinding
 import org.fossify.commons.helpers.LICENSE_AUTOFITTEXTVIEW
@@ -54,6 +61,7 @@ import org.fossify.commons.helpers.TAB_STORAGE_ANALYSIS
 import org.fossify.commons.helpers.VIEW_TYPE_GRID
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.models.FAQItem
+import org.fossify.commons.models.FileDirItem
 import org.fossify.commons.models.RadioItem
 import org.fossify.commons.models.Release
 import org.fossify.filemanager.BuildConfig
@@ -65,14 +73,20 @@ import org.fossify.filemanager.dialogs.ChangeViewTypeDialog
 import org.fossify.filemanager.dialogs.InsertFilenameDialog
 import org.fossify.filemanager.extensions.config
 import org.fossify.filemanager.extensions.isSmbPath
+import org.fossify.filemanager.extensions.isPathOnRoot
+import org.fossify.filemanager.extensions.smbFolderId
+import org.fossify.filemanager.extensions.smbRelativePath
 import org.fossify.filemanager.extensions.tryOpenPathIntent
 import org.fossify.filemanager.fragments.ItemsFragment
 import org.fossify.filemanager.fragments.MyViewPagerFragment
 import org.fossify.filemanager.fragments.RecentsFragment
 import org.fossify.filemanager.fragments.StorageFragment
+import org.fossify.filemanager.helpers.AppLog
 import org.fossify.filemanager.helpers.MAX_COLUMN_COUNT
 import org.fossify.filemanager.helpers.RootHelpers
+import org.fossify.filemanager.helpers.TransferEngine
 import org.fossify.filemanager.interfaces.ItemOperationsListener
+import org.fossify.filemanager.models.ClipboardOperation
 import java.io.File
 
 class MainActivity : SimpleActivity() {
@@ -93,6 +107,7 @@ class MainActivity : SimpleActivity() {
     private var mStoredDateFormat = ""
     private var mStoredTimeFormat = ""
     private var mStoredShowTabs = 0
+    private var clipboardOperation: ClipboardOperation? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -700,6 +715,193 @@ class MainActivity : SimpleActivity() {
     fun openedDirectory() {
         if (binding.mainMenu.isSearchOpen) {
             binding.mainMenu.closeSearch()
+        }
+    }
+
+    fun getClipboardOperation() = clipboardOperation
+
+    fun setClipboardOperation(operation: ClipboardOperation) {
+        clipboardOperation = operation
+        getItemsFragment()?.updateClipboardBar()
+    }
+
+    fun clearClipboard() {
+        clipboardOperation = null
+        getItemsFragment()?.updateClipboardBar()
+    }
+
+    fun pasteClipboardTo(destination: String, callback: (success: Boolean) -> Unit) {
+        val operation = clipboardOperation
+        if (operation == null || operation.items.isEmpty()) {
+            callback(false)
+            return
+        }
+
+        val sourceParentPath = operation.sourceParentPath
+        val isCopyOperation = operation.isCopyOperation
+        val items = operation.items
+        val paths = items.map { it.path }
+
+        val hasSmbSource = paths.any { it.isSmbPath() }
+        val hasLocalSource = paths.any { !it.isSmbPath() }
+        if (hasSmbSource && hasLocalSource) {
+            toast(R.string.not_supported_yet)
+            callback(false)
+            return
+        }
+
+        if (hasSmbSource && paths.map { it.smbFolderId() }.distinct().size > 1) {
+            toast(R.string.not_supported_yet)
+            callback(false)
+            return
+        }
+
+        if (destination.isSmbPath()) {
+            if (!hasSmbSource) {
+                val anyUnsupported = paths.any { p ->
+                    isPathOnOTG(p) || isRestrictedSAFOnlyRoot(p) || isPathOnRoot(p)
+                }
+                if (anyUnsupported) {
+                    toast(R.string.not_supported_yet)
+                    callback(false)
+                    return
+                }
+            }
+
+            toast(R.string.copying)
+            ensureBackgroundThread {
+                try {
+                    val engine = TransferEngine(this)
+                    val destFolderId = destination.smbFolderId()
+                    val destRelDir = destination.smbRelativePath()
+                    if (hasSmbSource) {
+                        engine.copyMoveSmbToSmb(paths, destFolderId, destRelDir, isCopyOperation)
+                    } else {
+                        engine.copyMoveLocalToSmb(paths, destFolderId, destRelDir, isCopyOperation)
+                    }
+                    runOnUiThread {
+                        toast(R.string.copying_success)
+                        clearClipboard()
+                        callback(true)
+                    }
+                } catch (e: Exception) {
+                    AppLog.e("MainActivity", "Clipboard paste to SMB failed", e)
+                    runOnUiThread { callback(false) }
+                }
+            }
+            return
+        }
+
+        if (isPathOnOTG(destination) || isRestrictedSAFOnlyRoot(destination) || isPathOnRoot(destination)) {
+            toast(R.string.not_supported_yet)
+            callback(false)
+            return
+        }
+
+        val destDir = File(destination)
+        if (!destDir.exists()) {
+            destDir.mkdirs()
+        }
+        if (!destDir.isDirectory) {
+            toast(R.string.unknown_error_occurred)
+            callback(false)
+            return
+        }
+
+        if (hasSmbSource) {
+            toast(R.string.copying)
+            ensureBackgroundThread {
+                try {
+                    TransferEngine(this).copyMoveSmbToLocal(paths, destination, isCopyOperation)
+                    runOnUiThread {
+                        toast(R.string.copying_success)
+                        clearClipboard()
+                        callback(true)
+                    }
+                } catch (e: Exception) {
+                    AppLog.e("MainActivity", "Clipboard paste to device storage failed", e)
+                    runOnUiThread { callback(false) }
+                }
+            }
+            return
+        }
+
+        config.lastCopyPath = destination
+        val fileDirItems = items.mapTo(ArrayList()) {
+            FileDirItem(it.path, it.name, it.isDirectory, 0, 0, 0)
+        }
+
+        val firstPath = fileDirItems[0].path
+        if (isPathOnRoot(destination) || isPathOnRoot(firstPath)) {
+            toast(R.string.copying)
+            ensureBackgroundThread {
+                val fileCnt = fileDirItems.size
+                RootHelpers(this).copyMoveFiles(fileDirItems, destination, isCopyOperation) { successCount ->
+                    runOnUiThread {
+                        when (successCount) {
+                            fileCnt -> toast(R.string.copying_success)
+                            0 -> toast(R.string.copy_failed)
+                            else -> toast(R.string.copying_success_partial)
+                        }
+
+                        if (successCount > 0) {
+                            clearClipboard()
+                        }
+                        callback(successCount > 0)
+                    }
+                }
+            }
+            return
+        }
+
+        copyMoveFilesTo(
+            fileDirItems = fileDirItems,
+            source = sourceParentPath,
+            destination = destination,
+            isCopyOperation = isCopyOperation,
+            copyPhotoVideoOnly = false,
+            copyHidden = config.shouldShowHidden()
+        ) {
+            if (isCopyOperation) {
+                clearClipboard()
+                callback(true)
+                return@copyMoveFilesTo
+            }
+
+            fun deleteNextMovedItem(index: Int) {
+                val item = fileDirItems.getOrNull(index)
+                if (item == null) {
+                    clearClipboard()
+                    callback(true)
+                    return
+                }
+
+                val sourcePath = item.path
+                if (isRestrictedSAFOnlyRoot(sourcePath) && getDoesFilePathExist(sourcePath)) {
+                    deleteFile(item, true) {
+                        deleteNextMovedItem(index + 1)
+                    }
+                    return
+                }
+
+                val sourceFile = File(sourcePath)
+                if (
+                    getDoesFilePathExist(sourceParentPath)
+                    && getIsPathDirectory(sourceParentPath)
+                    && sourceFile.list()?.isEmpty() == true
+                    && sourceFile.getProperSize(true) == 0L
+                    && sourceFile.getFileCount(true) == 0
+                ) {
+                    val sourceFolder = sourceFile.toFileDirItem(this)
+                    deleteFile(sourceFolder, true) {
+                        deleteNextMovedItem(index + 1)
+                    }
+                } else {
+                    deleteNextMovedItem(index + 1)
+                }
+            }
+
+            deleteNextMovedItem(0)
         }
     }
 

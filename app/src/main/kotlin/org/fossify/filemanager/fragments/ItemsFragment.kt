@@ -39,6 +39,8 @@ class ItemsFragment(context: Context, attributeSet: AttributeSet) : MyViewPagerF
     private var lastSearchedText = ""
     private var scrollStates = HashMap<String, Parcelable>()
     private var zoomListener: MyRecyclerView.MyZoomListener? = null
+    private var originalItemsListBottomPadding = 0
+    private var originalFabBottomMargin = 0
 
     private var storedItems = ArrayList<ListItem>()
     private var itemsIgnoringSearch = ArrayList<ListItem>()
@@ -48,6 +50,8 @@ class ItemsFragment(context: Context, attributeSet: AttributeSet) : MyViewPagerF
         super.onFinishInflate()
         binding = ItemsFragmentBinding.bind(this)
         innerBinding = ItemsInnerBinding(binding)
+        originalItemsListBottomPadding = binding.itemsList.paddingBottom
+        originalFabBottomMargin = (binding.itemsFab.layoutParams as androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams).bottomMargin
     }
 
     override fun setupFragment(activity: SimpleActivity) {
@@ -62,6 +66,20 @@ class ItemsFragment(context: Context, attributeSet: AttributeSet) : MyViewPagerF
                     } else {
                         createNewItem()
                     }
+                }
+
+                clipboardPrimaryAction.setOnClickListener {
+                    (this@ItemsFragment.activity as? MainActivity)?.pasteClipboardTo(currentPath) { success ->
+                        if (success) {
+                            refreshFragment()
+                        }
+                        updateClipboardBar()
+                    }
+                }
+
+                clipboardCancel.setOnClickListener {
+                    (this@ItemsFragment.activity as? MainActivity)?.clearClipboard()
+                    updateClipboardBar()
                 }
             }
         }
@@ -87,6 +105,8 @@ class ItemsFragment(context: Context, attributeSet: AttributeSet) : MyViewPagerF
 
             itemsSwipeRefresh.isEnabled = lastSearchedText.isEmpty() && activity?.config?.enablePullToRefresh != false
         }
+
+        updateClipboardBar()
     }
 
     override fun setupFontSize() {
@@ -116,6 +136,7 @@ class ItemsFragment(context: Context, attributeSet: AttributeSet) : MyViewPagerF
 
         scrollStates[currentPath] = getScrollState()!!
         currentPath = realPath
+        updateClipboardBar()
         showHidden = context!!.config.shouldShowHidden()
         showProgressBar()
         getItems(currentPath) { originalPath, listItems ->
@@ -194,7 +215,26 @@ class ItemsFragment(context: Context, attributeSet: AttributeSet) : MyViewPagerF
                     try {
                         val smb = SmbFileSystem(context!!)
                         val fileItems = smb.list(path.smbFolderId(), path.smbRelativePath())
-                        callback(path, getListItemsFromFileDirItems(ArrayList(fileItems)))
+                        val listItems = getListItemsFromFileDirItems(ArrayList(fileItems))
+                        callback(path, listItems)
+
+                        val getProperChildCount = context!!.config.getFolderViewType(path) == VIEW_TYPE_LIST
+                        if (getProperChildCount) {
+                            listItems.filter { it.mIsDirectory }.forEach {
+                                if (context != null) {
+                                    val childrenCount = runCatching {
+                                        smb.list(it.mPath.smbFolderId(), it.mPath.smbRelativePath())
+                                            .count { child -> showHidden || !child.name.startsWith(".") }
+                                    }.getOrDefault(0)
+
+                                    if (childrenCount != 0) {
+                                        activity?.runOnUiThread {
+                                            getRecyclerAdapter()?.updateChildCount(it.mPath, childrenCount)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     } catch (e: Exception) {
                         AppLog.e("ItemsFragment", "SMB list failed for $path", e)
                         activity?.runOnUiThread { hideProgressBar() }
@@ -318,6 +358,43 @@ class ItemsFragment(context: Context, attributeSet: AttributeSet) : MyViewPagerF
             openedDirectory()
         }
         openPath(path)
+    }
+
+    fun updateClipboardBar() {
+        val clipboardOperation = (activity as? MainActivity)?.getClipboardOperation()
+        if (clipboardOperation == null) {
+            binding.clipboardBar.beGone()
+            applyBottomInsets(0)
+            return
+        }
+
+        binding.clipboardPrimaryAction.setText(
+            if (clipboardOperation.isCopyOperation) {
+                R.string.paste_here
+            } else {
+                R.string.move_here
+            }
+        )
+
+        binding.clipboardBar.beVisible()
+        binding.clipboardBar.post {
+            val params = binding.clipboardBar.layoutParams as androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams
+            val extraBottomInset = binding.clipboardBar.height + params.bottomMargin
+            applyBottomInsets(extraBottomInset)
+        }
+    }
+
+    private fun applyBottomInsets(extraBottomInset: Int) {
+        binding.itemsList.setPadding(
+            binding.itemsList.paddingLeft,
+            binding.itemsList.paddingTop,
+            binding.itemsList.paddingRight,
+            originalItemsListBottomPadding + extraBottomInset
+        )
+
+        val fabParams = binding.itemsFab.layoutParams as androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams
+        fabParams.bottomMargin = originalFabBottomMargin + extraBottomInset
+        binding.itemsFab.layoutParams = fabParams
     }
 
     override fun searchQueryChanged(text: String) {

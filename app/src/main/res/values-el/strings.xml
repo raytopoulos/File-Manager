@@ -44,4 +44,12 @@
     <string name="total_storage">Σύνολο: %s</string>
     <string name="enable_root_access">Ενεργοποιήστε την πρόσβαση ριζικού καταλόγου</string>
     <string name="press_back_twice">Απαιτείται διπλό πάτημα του πλήκτρου \"Πίσω\" για κλείσιμο εφαρμογής</string>
+    <string name="paste_here">Επικόλληση εδώ</string>
+    <string name="move_here">Μετακίνηση εδώ</string>
+    <string name="internal">Εσωτερικός χώρος</string>
+
+    <string name="network_folders">Φάκελοι δικτύου</string>
+    <string name="add_network_folder">Προσθήκη φακέλου δικτύου</string>
+    <string name="scan_smb">Σάρωση SMB</string>
+    <string name="copy_debug_log">Αντιγραφή αρχείου καταγραφής αποσφαλμάτωσης</string>
 </resources>

@@ -101,5 +101,42 @@
             android:layout_margin="@dimen/activity_margin"
             android:src="@drawable/ic_plus_vector" />
 
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/clipboard_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:visibility="gone"
+            app:cardCornerRadius="0dp"
+            app:cardElevation="0dp"
+            app:cardUseCompatPadding="false"
+            app:strokeWidth="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="@dimen/activity_margin">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/clipboard_primary_action"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    app:cornerRadius="@dimen/clipboard_action_corner_radius"
+                    android:text="@string/paste_here" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/clipboard_cancel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/activity_margin"
+                    app:cornerRadius="@dimen/clipboard_action_corner_radius"
+                    android:text="@string/cancel" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 </org.fossify.filemanager.fragments.ItemsFragment>
